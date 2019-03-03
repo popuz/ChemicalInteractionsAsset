@@ -16,9 +16,10 @@ public class HorizontalSlicer : MonoBehaviour
     Debug.DrawLine(o1, o2, Color.red);
     Debug.DrawLine(o2, o3, Color.red);
     Debug.DrawLine(o3, o1, Color.red);
-
-    // there is definitely better ways for this (checks if the triangle edges intersect with anything)
-    if (Physics.Linecast(o1, o2, out var hit) || Physics.Linecast(o2, o3, out hit) || Physics.Linecast(o3, o1, out hit))
+   
+    if (Physics.Linecast(o1, o2, out var hit) 
+        || Physics.Linecast(o2, o3, out hit)
+                                              || Physics.Linecast(o3, o1, out hit))
     {
       var cutPlane = new Plane(o1, o2, o3);
       var hitTransform = hit.collider.gameObject.transform;
