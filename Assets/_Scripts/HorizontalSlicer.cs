@@ -2,11 +2,10 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 
-[ExecuteInEditMode]
+//[ExecuteInEditMode]
 public class HorizontalSlicer : MonoBehaviour
 {
   [SerializeField] private float _slicerShift;
-
   private Plane _slicerPlane;
 
   private Transform _transform;
@@ -16,14 +15,18 @@ public class HorizontalSlicer : MonoBehaviour
 
   private List<Vector3> _allIntersections = new List<Vector3>();
   private List<Vector3> _triangleIntersections = new List<Vector3>();
-  private List<Triangle> newTris = new List<Triangle>(); // list that stores the triangles for first slice   
+  private List<Triangle> _newTris = new List<Triangle>(); // list that stores the triangles for first slice   
+
+  private VolumeCalculator _volumeCalculator;
 
   private void OnValidate()
   {
     _transform = gameObject.transform;
-    _mesh = gameObject.GetComponent<MeshFilter>().sharedMesh;
+    _mesh = GetComponent<MeshFilter>().sharedMesh;
     _triangles = _mesh.triangles;
     _meshVertices = _mesh.vertices;
+
+    _volumeCalculator = GetComponent<VolumeCalculator>();
   }
 
   private void OnDrawGizmosSelected() =>
@@ -31,34 +34,37 @@ public class HorizontalSlicer : MonoBehaviour
 
   private void Update()
   {
+    //if (!Input.GetMouseButtonDown(0)) return;
+
     _slicerPlane = new Plane(Vector3.up, transform.position + Vector3.up * _slicerShift);
+    _newTris.Clear();
     _allIntersections.Clear();
-    
+
     for (var i = 0; i < _triangles.Length; i += 3)
     {
       var vertices = new Vector3[3];
       for (var j = 0; j < 3; j++)
         vertices[j] = _transform.TransformPoint(_meshVertices[_triangles[i + j]]);
+      var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
 
       _triangleIntersections = FindIntersections(vertices);
       _allIntersections.AddRange(_triangleIntersections);
 
       if (_triangleIntersections.Count == 0 && !_slicerPlane.GetSide(vertices[0]))
-        newTris.Add(new Triangle(vertices));
+        _newTris.Add(new Triangle(vertices));
       else if (_triangleIntersections.Count == 2)
-        AddTrianglesBelowCut(FindPointsBelowTheCut(vertices),
-          norm: Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]));
-      else
-        Debug.Log(_triangleIntersections.Count);
+        AddTrianglesBelowCut(FindPointsBelowTheCut(vertices), norm);
+      else if (_triangleIntersections.Count != 0) // TODO: Resolve special cases when count == 1 and == 3
+        Debug.LogWarning($"Un managed intersections count:{_triangleIntersections.Count} intersections");
     }
 
     foreach (var point in _allIntersections)
       Debug.DrawLine(point, point + Vector3.up * 0.05f, Color.cyan);
-//      if (intersections.Count > 1)
-//        GenerateNewGeometry(intersections, pl, newTris1, newTris2);
-//
-//      if (intersections.Count > 0 && Input.GetMouseButtonDown(0))
-//        SliceMesh(hit, newTris1, newTris2);
+       
+    //TriangulateSlicedSide();    
+    _volumeCalculator.PrintRealVolume();
+    Debug.Log(_volumeCalculator.VolumeOfMesh(_newTris));   
+    Debug.Log($"started:{_volumeCalculator.VolumeOfMeshByTriangles()}  cut:{_volumeCalculator.VolumeOfMesh(_newTris)}");        
   }
 
   private List<Vector3> FindIntersections(Vector3[] points)
@@ -95,55 +101,37 @@ public class HorizontalSlicer : MonoBehaviour
 
   private void AddTrianglesBelowCut(List<Vector3> pointsBelowCut, Vector3 norm)
   {
-    newTris.Add(new Triangle(pointsBelowCut[0], _triangleIntersections[0], _triangleIntersections[1], norm));
-    if (pointsBelowCut.Count == 2)
-      newTris.Add(new Triangle(pointsBelowCut[0], pointsBelowCut[1], _triangleIntersections[1], norm));
+    _newTris.Add(new Triangle(_triangleIntersections[0], _triangleIntersections[1], pointsBelowCut[0], norm));
+    
+    if (pointsBelowCut.Count == 2)    
+      _newTris.Add(new Triangle(pointsBelowCut[0], pointsBelowCut[1], _triangleIntersections[1], norm));    
   }
 
-  private void GenerateNewGeometry(List<Vector3> intersections, Plane pl, List<Triangle> newTris1,
-    List<Triangle> newTris2)
+  private void TriangulateSlicedSide()
   {
     var center = Vector3.zero;
-    foreach (var vec in intersections) // find average point TODO: for more complex shapes this doesn't work
+    foreach (var vec in _allIntersections) // find average point TODO: for more complex shapes this doesn't work
       center += vec;
-    center /= intersections.Count;
-    for (int i = 0; i < intersections.Count; i++)
-    {
-      var tri = new Triangle()
-      {
-        v1 = intersections[i], v2 = center,
-        v3 = i + 1 == intersections.Count ? intersections[i] : intersections[i + 1]
-      };
-      tri.AlignToDirection(-pl.normal);
-      newTris1.Add(tri);
-    }
+    center /= _allIntersections.Count;
 
-    for (int i = 0; i < intersections.Count; i++)
-    {
-      var tri = new Triangle()
-      {
-        v1 = intersections[i], v2 = center,
-        v3 = i + 1 == intersections.Count ? intersections[i] : intersections[i + 1]
-      };
-      tri.AlignToDirection(pl.normal);
-      newTris2.Add(tri);
-    }
+    for (var i = 0; i < _allIntersections.Count; i++)
+      _newTris.Add(new Triangle
+      (_allIntersections[i], center, i + 1 == _allIntersections.Count ? _allIntersections[i] : _allIntersections[i + 1],
+        _slicerPlane.normal));
   }
 
-  private void SliceMesh(RaycastHit hit, List<Triangle> newTris1, List<Triangle> newTris2)
+  private void GenerateSlicedMesh()
   {
-    // intersects and player pressed button, in a realistic use case, you'd like to nest all the above code in this block
-    var mat = hit.collider.gameObject.GetComponent<MeshRenderer>().material; // get the original material
-    Destroy(hit.collider.gameObject);
+    var mat = gameObject.GetComponent<MeshRenderer>().material; // get the original material
+    //Destroy(gameObject);
 
     Mesh mesh1 = new Mesh();
-    Mesh mesh2 = new Mesh();
 
     List<Vector3> tris = new List<Vector3>();
     List<int> indices = new List<int>();
 
     int index = 0;
-    foreach (var thing in newTris1) // generate first slice
+    foreach (var thing in _newTris) // generate first slice
     {
       tris.Add(thing.v1);
       tris.Add(thing.v2);
@@ -156,48 +144,18 @@ public class HorizontalSlicer : MonoBehaviour
     mesh1.vertices = tris.ToArray();
     mesh1.triangles = indices.ToArray();
 
-    index = 0;
-    tris.Clear();
-    indices.Clear();
-    foreach (var thing in newTris2) // and second
-    {
-      tris.Add(thing.v1);
-      tris.Add(thing.v2);
-      tris.Add(thing.v3);
-      indices.Add(index++);
-      indices.Add(index++);
-      indices.Add(index++);
-    }
-
-    mesh2.vertices = tris.ToArray();
-    mesh2.triangles = indices.ToArray();
-
     mesh1.RecalculateNormals(); // TODO: most likely you'd want to rebase the pivot, I just didn't care
     mesh1.RecalculateBounds();
-    mesh2.RecalculateNormals();
-    mesh2.RecalculateBounds();
 
     // create the actual slice gameobjects
-
-    var go1 = new GameObject();
-    var go2 = new GameObject();
-
+    var go1 = new GameObject("Sliced Mesh");
     var mf1 = go1.AddComponent<MeshFilter>();
     mf1.mesh = mesh1;
     var mr1 = go1.AddComponent<MeshRenderer>();
     mr1.material = mat;
-    var mc1 = go1.AddComponent<MeshCollider>();
-    mc1.convex = true;
-    go1.AddComponent<Rigidbody>(); // TODO: this will fail if the mesh has more than 255 verts (I think the only solution is to simplify the collision mesh, but... that's complicated)
-    mc1.sharedMesh = mesh1;
-
-    var mf2 = go2.AddComponent<MeshFilter>();
-    mf2.mesh = mesh2;
-    var mr2 = go2.AddComponent<MeshRenderer>();
-    mr2.material = mat;
-    var mc2 = go2.AddComponent<MeshCollider>();
-    mc2.convex = true;
-    go2.AddComponent<Rigidbody>();
-    mc2.sharedMesh = mesh2;
+    //var mc1 = go1.AddComponent<MeshCollider>();
+    //mc1.convex = true;
+    //go1.AddComponent<Rigidbody>(); // TODO: this will fail if the mesh has more than 255 verts (I think the only solution is to simplify the collision mesh, but... that's complicated)
+    //mc1.sharedMesh = mesh1;
   }
 }

@@ -19,26 +19,27 @@ public struct Triangle
   }
   
   public Triangle(Vector3 v1, Vector3 v2, Vector3 v3, Vector3 norm)
-  {
+  {    
     this.v1 = v1;
     this.v2 = v2;
     this.v3 = v3;
     AlignToDirection(norm);
   }
-  public void AlignToDirection(Vector3 dir)
+
+  private void AlignToDirection(Vector3 dir)
   {
     if (!IsNormalCodirectional(dir))
-      SwapVertices(v1, v3);
+      SwapVertices();
   }
 
-  private bool IsNormalCodirectional(Vector3 dir) => Vector3.Dot(GetNormal(), dir) > 0;
+  private bool IsNormalCodirectional(Vector3 dir) => Vector3.Dot(GetNormalDirection(), dir) > 0;
 
-  private Vector3 GetNormal() => Vector3.Cross(v1 - v2, v1 - v3).normalized;
-
-  private static void SwapVertices(Vector3 vertex1, Vector3 vertex2)
+  private Vector3 GetNormalDirection() => Vector3.Cross(v1 - v2, v1 - v3);
+  
+  private void SwapVertices()
   {
-    var tmp = vertex1;
-    vertex1 = vertex2;
-    vertex2 = tmp;
+    var tmp = v2;
+    v2 = v3;
+    v3 = tmp;
   }
 }
