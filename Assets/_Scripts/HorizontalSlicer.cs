@@ -14,8 +14,9 @@ public class HorizontalSlicer : MonoBehaviour
   private Vector3[] _meshVertices;
   private int[] _triangles;
 
-  private List<Vector3> _intersections = new List<Vector3>();
-  private List<Vector3> _points = new List<Vector3>();
+  private List<Vector3> _allIntersections = new List<Vector3>();
+  private List<Vector3> _triangleIntersections = new List<Vector3>();
+  private List<Triangle> newTris = new List<Triangle>(); // list that stores the triangles for first slice   
 
   private void OnValidate()
   {
@@ -31,108 +32,72 @@ public class HorizontalSlicer : MonoBehaviour
   private void Update()
   {
     _slicerPlane = new Plane(Vector3.up, transform.position + Vector3.up * _slicerShift);
-    _intersections.Clear();
-
-    var newTris1 = new List<Triangle>(); // list that stores the triangles for first slice
-    var newTris2 = new List<Triangle>(); // second slice
-
-    for (var i = 0; i < _triangles.Length; i += 3) // loop all triangles in the mesh
+    _allIntersections.Clear();
+    
+    for (var i = 0; i < _triangles.Length; i += 3)
     {
-      _points.Clear();
+      var vertices = new Vector3[3];
+      for (var j = 0; j < 3; j++)
+        vertices[j] = _transform.TransformPoint(_meshVertices[_triangles[i + j]]);
 
-      var v1 = _triangles[i];
-      var v2 = _triangles[i + 1];
-      var v3 = _triangles[i + 2];
-      var p1 = _transform.TransformPoint(_meshVertices[v1]); // vertex 1 in world coordinates
-      var p2 = _transform.TransformPoint(_meshVertices[v2]);
-      var p3 = _transform.TransformPoint(_meshVertices[v3]);
+      _triangleIntersections = FindIntersections(vertices);
+      _allIntersections.AddRange(_triangleIntersections);
 
-      var norm = Vector3.Cross(p1 - p2, p1 - p3); // normal of the triangle
-      Debug.DrawLine(p1, p1 + norm, Color.green); // draw normals
-
-      Debug.DrawRay(p1, p2 - p1);
-      Debug.DrawRay(p2, p3 - p2);
-      Debug.DrawRay(p3, p1 - p3);
-
-      CheckIntersectionWitPlane(p1, p2 - p1);
-      CheckIntersectionWitPlane(p2, p3 - p2);
-      CheckIntersectionWitPlane(p3, p1 - p3);
-
-      if (_points.Count == 2)
-        SubdivideAndAdd3Triangles(p1, p2, p3, norm, newTris1);
-      else if (_points.Count <= 0 && !_slicerPlane.GetSide(p1))
-        newTris1.Add(new Triangle() {v1 = p1, v2 = p2, v3 = p3});
+      if (_triangleIntersections.Count == 0 && !_slicerPlane.GetSide(vertices[0]))
+        newTris.Add(new Triangle(vertices));
+      else if (_triangleIntersections.Count == 2)
+        AddTrianglesBelowCut(FindPointsBelowTheCut(vertices),
+          norm: Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]));
+      else
+        Debug.Log(_triangleIntersections.Count);
     }
 
-    foreach (var point in _intersections)
+    foreach (var point in _allIntersections)
       Debug.DrawLine(point, point + Vector3.up * 0.05f, Color.cyan);
-
-//
 //      if (intersections.Count > 1)
 //        GenerateNewGeometry(intersections, pl, newTris1, newTris2);
 //
 //      if (intersections.Count > 0 && Input.GetMouseButtonDown(0))
 //        SliceMesh(hit, newTris1, newTris2);
-//
   }
 
-  private void CheckIntersectionWitPlane(Vector3 origin, Vector3 direction)
+  private List<Vector3> FindIntersections(Vector3[] points)
   {
-    if (_slicerPlane.Raycast(new Ray(origin, direction), out var ent) && ent <= direction.magnitude)
+    var intersections = new List<Vector3>();
+
+    for (var i = 0; i < 3; i++)
     {
-      var intersection = origin + ent * direction.normalized;
-      _intersections.Add(intersection);
-      _points.Add(intersection);
+      var j = (i + 1) < 3 ? (i + 1) : 0;
+      var origin = points[i];
+      var direction = points[j] - points[i];
+
+      Debug.DrawRay(origin, direction);
+      if (IntersectedByPlane(origin, direction, out var distOnRay))
+        intersections.Add(origin + distOnRay * direction.normalized);
     }
+
+    return intersections;
   }
 
-  private void SubdivideAndAdd3Triangles(Vector3 p1, Vector3 p2, Vector3 p3, Vector3 norm, List<Triangle> newTris1)
+  private bool IntersectedByPlane(Vector3 origin, Vector3 direction, out float distOnRay)
+    => _slicerPlane.Raycast(new Ray(origin, direction), out distOnRay) && distOnRay <= direction.magnitude;
+
+  private List<Vector3> FindPointsBelowTheCut(Vector3[] triangleVertices)
   {
-    Debug.Assert(_points.Count == 2);
+    var points = new List<Vector3>();
 
-    var points1 = new List<Vector3>(); // vertices for first slice
-    points1.AddRange(_points); // add the intersection vertices (they are shared for both slices)    
+    for (var i = 0; i < 3; i++)
+      if (!_slicerPlane.GetSide(triangleVertices[i]))
+        points.Add(triangleVertices[i]);
 
-    if (!_slicerPlane.GetSide(p1))
-      points1.Add(p1);
-    if (!_slicerPlane.GetSide(p2))
-      points1.Add(p2);
-    if (!_slicerPlane.GetSide(p3))
-      points1.Add(p3);
+    return points;
+  }
 
-    // this is just dumb, could be cleaned up a lot
-    // if we slice a triangle, it will end up one half with 3 vertices and second half with 4 vertices
-    // 3 means we just create the triangle and flip it the right way if needed
-    // 4 means we need to divide it into 2 triangles
-    if (points1.Count == 3) // first slice
-    {
-      var tri = new Triangle() {v1 = points1[1], v2 = points1[0], v3 = points1[2]};
-      tri.MatchToDirection(norm);
-      newTris1.Add(tri);
-    }
-    else
-    {
-      Debug.Assert(points1.Count == 4); // TODO: handle special case
-      if (Vector3.Dot((points1[0] - points1[1]), points1[2] - points1[3]) >= 0)
-      {
-        var tri = new Triangle() {v1 = points1[0], v2 = points1[2], v3 = points1[3]};
-        tri.MatchToDirection(
-          norm); // flip the triangle if it happens to be the wrong way compared to the original normal
-        newTris1.Add(tri);
-        tri = new Triangle() {v1 = points1[0], v2 = points1[3], v3 = points1[1]};
-        tri.MatchToDirection(norm);
-        newTris1.Add(tri);
-      }
-      else
-      {
-        var tri = new Triangle() {v1 = points1[0], v2 = points1[3], v3 = points1[2]};
-        tri.MatchToDirection(norm);
-        newTris1.Add(tri);
-        tri = new Triangle() {v1 = points1[0], v2 = points1[2], v3 = points1[1]};
-        tri.MatchToDirection(norm);
-        newTris1.Add(tri);
-      }
-    }
+  private void AddTrianglesBelowCut(List<Vector3> pointsBelowCut, Vector3 norm)
+  {
+    newTris.Add(new Triangle(pointsBelowCut[0], _triangleIntersections[0], _triangleIntersections[1], norm));
+    if (pointsBelowCut.Count == 2)
+      newTris.Add(new Triangle(pointsBelowCut[0], pointsBelowCut[1], _triangleIntersections[1], norm));
   }
 
   private void GenerateNewGeometry(List<Vector3> intersections, Plane pl, List<Triangle> newTris1,
@@ -149,7 +114,7 @@ public class HorizontalSlicer : MonoBehaviour
         v1 = intersections[i], v2 = center,
         v3 = i + 1 == intersections.Count ? intersections[i] : intersections[i + 1]
       };
-      tri.MatchToDirection(-pl.normal);
+      tri.AlignToDirection(-pl.normal);
       newTris1.Add(tri);
     }
 
@@ -160,7 +125,7 @@ public class HorizontalSlicer : MonoBehaviour
         v1 = intersections[i], v2 = center,
         v3 = i + 1 == intersections.Count ? intersections[i] : intersections[i + 1]
       };
-      tri.MatchToDirection(pl.normal);
+      tri.AlignToDirection(pl.normal);
       newTris2.Add(tri);
     }
   }

@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class VolumeCalculator : MonoBehaviour
 {
@@ -24,10 +22,6 @@ public class VolumeCalculator : MonoBehaviour
     return Mathf.Abs(volume) / 6f * lossyScale.x * lossyScale.y * lossyScale.z;
   }
   
-  private static float TripleProduct(Vector3 v1, Vector3 v2, Vector3 v3)
-    => Vector3.Dot(Vector3.Cross(v1, v2), v3);
-  
-  
   private float VolumeOfMeshScaled(Mesh mesh)
   {
     float volume = 0;
@@ -45,4 +39,9 @@ public class VolumeCalculator : MonoBehaviour
 
     return Mathf.Abs(volume) / 6f;
   } 
+  
+  private static float TripleProduct(Vector3 v1, Vector3 v2, Vector3 v3)
+    => Vector3.Dot(Vector3.Cross(v1, v2), v3);
+    
+
 }
