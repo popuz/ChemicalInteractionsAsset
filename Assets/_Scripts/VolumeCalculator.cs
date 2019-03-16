@@ -6,7 +6,6 @@ public class VolumeCalculator : MonoBehaviour
   private Mesh _mesh;
 
   private void OnValidate() => _mesh = GetComponent<MeshFilter>().sharedMesh;
-
   //private void Awake() => _mesh = GetComponent<MeshFilter>().sharedMesh;
 
   private void Start() => PrintRealVolume();

@@ -60,10 +60,8 @@ public class HorizontalSlicer : MonoBehaviour
 
     foreach (var point in _allIntersections)
       Debug.DrawLine(point, point + Vector3.up * 0.05f, Color.cyan);
-       
-    //TriangulateSlicedSide();    
-    _volumeCalculator.PrintRealVolume();
-    Debug.Log(_volumeCalculator.VolumeOfMesh(_newTris));   
+           
+    _volumeCalculator.PrintRealVolume();    
     Debug.Log($"started:{_volumeCalculator.VolumeOfMeshByTriangles()}  cut:{_volumeCalculator.VolumeOfMesh(_newTris)}");        
   }
 
@@ -105,57 +103,5 @@ public class HorizontalSlicer : MonoBehaviour
     
     if (pointsBelowCut.Count == 2)    
       _newTris.Add(new Triangle(pointsBelowCut[0], pointsBelowCut[1], _triangleIntersections[1], norm));    
-  }
-
-  private void TriangulateSlicedSide()
-  {
-    var center = Vector3.zero;
-    foreach (var vec in _allIntersections) // find average point TODO: for more complex shapes this doesn't work
-      center += vec;
-    center /= _allIntersections.Count;
-
-    for (var i = 0; i < _allIntersections.Count; i++)
-      _newTris.Add(new Triangle
-      (_allIntersections[i], center, i + 1 == _allIntersections.Count ? _allIntersections[i] : _allIntersections[i + 1],
-        _slicerPlane.normal));
-  }
-
-  private void GenerateSlicedMesh()
-  {
-    var mat = gameObject.GetComponent<MeshRenderer>().material; // get the original material
-    //Destroy(gameObject);
-
-    Mesh mesh1 = new Mesh();
-
-    List<Vector3> tris = new List<Vector3>();
-    List<int> indices = new List<int>();
-
-    int index = 0;
-    foreach (var thing in _newTris) // generate first slice
-    {
-      tris.Add(thing.v1);
-      tris.Add(thing.v2);
-      tris.Add(thing.v3);
-      indices.Add(index++);
-      indices.Add(index++);
-      indices.Add(index++);
-    }
-
-    mesh1.vertices = tris.ToArray();
-    mesh1.triangles = indices.ToArray();
-
-    mesh1.RecalculateNormals(); // TODO: most likely you'd want to rebase the pivot, I just didn't care
-    mesh1.RecalculateBounds();
-
-    // create the actual slice gameobjects
-    var go1 = new GameObject("Sliced Mesh");
-    var mf1 = go1.AddComponent<MeshFilter>();
-    mf1.mesh = mesh1;
-    var mr1 = go1.AddComponent<MeshRenderer>();
-    mr1.material = mat;
-    //var mc1 = go1.AddComponent<MeshCollider>();
-    //mc1.convex = true;
-    //go1.AddComponent<Rigidbody>(); // TODO: this will fail if the mesh has more than 255 verts (I think the only solution is to simplify the collision mesh, but... that's complicated)
-    //mc1.sharedMesh = mesh1;
   }
 }
