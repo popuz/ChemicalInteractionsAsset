@@ -7,13 +7,13 @@ public class Slice : MonoBehaviour
   {
     public Vector3 v1, v2, v3;
 
-    public void MatchToDirection(Vector3 dir) 
+    public void MatchToDirection(Vector3 dir)
     {
-      if (!IsNormalCodirectional(dir))
+      if (!IsNormalCodirectionalWith(dir))
         SwapVertices(v1, v3);
     }
 
-    private bool IsNormalCodirectional(Vector3 dir) => Vector3.Dot(GetNormal(), dir) > 0;
+    private bool IsNormalCodirectionalWith(Vector3 dir) => Vector3.Dot(GetNormal(), dir) > 0;
 
     private Vector3 GetNormal() => Vector3.Cross(v1 - v2, v1 - v3).normalized;
 
@@ -34,8 +34,8 @@ public class Slice : MonoBehaviour
     // find the points the define the slicing plane
     Transform cTrans = Camera.main.transform;
     Vector3 o1 = cTrans.position;
-    Vector3 o2 = cTrans.position + cTrans.forward*2f - cTrans.right;
-    Vector3 o3 = cTrans.position + cTrans.forward*2f + cTrans.right;
+    Vector3 o2 = cTrans.position + cTrans.forward * 2f - cTrans.right;
+    Vector3 o3 = cTrans.position + cTrans.forward * 2f + cTrans.right;
 
     // draw a triangle tha defines thes plane
     Debug.DrawLine(o1, o2, Color.red);
