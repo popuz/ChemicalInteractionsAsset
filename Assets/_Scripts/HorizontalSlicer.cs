@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -6,6 +7,7 @@ using UnityEngine.Serialization;
 public class HorizontalSlicer : MonoBehaviour
 {
   [SerializeField] private float _slicerShift;
+  [SerializeField] private float _slicerPlaneDebugSize = 1f;
   private Plane _slicerPlane;
 
   private Transform _transform;
@@ -19,6 +21,8 @@ public class HorizontalSlicer : MonoBehaviour
 
   private VolumeCalculator _volumeCalculator;
 
+  public List<Triangle> SlicedTris => _newTris;
+
   private void OnValidate()
   {
     _transform = gameObject.transform;
@@ -30,12 +34,11 @@ public class HorizontalSlicer : MonoBehaviour
   }
 
   private void OnDrawGizmosSelected() =>
-    Gizmos.DrawCube(transform.position + Vector3.up * _slicerShift, new Vector3(1.0f, 0.0001f, 1.0f));
+    Gizmos.DrawCube(transform.position + Vector3.up * _slicerShift,
+      new Vector3(_slicerPlaneDebugSize, 0.0001f, _slicerPlaneDebugSize));
 
   private void Update()
   {
-    //if (!Input.GetMouseButtonDown(0)) return;
-
     _slicerPlane = new Plane(Vector3.up, transform.position + Vector3.up * _slicerShift);
     _newTris.Clear();
     _allIntersections.Clear();
@@ -53,16 +56,20 @@ public class HorizontalSlicer : MonoBehaviour
       if (_triangleIntersections.Count == 0 && !_slicerPlane.GetSide(vertices[0]))
         _newTris.Add(new Triangle(vertices));
       else if (_triangleIntersections.Count == 2)
-        AddTrianglesBelowCut(FindPointsBelowTheCut(vertices), norm);
+        //AddTrianglesBelowCut(FindPointsBelowTheCut(vertices), norm);
+        ;
       else if (_triangleIntersections.Count != 0) // TODO: Resolve special cases when count == 1 and == 3
+      {
         Debug.LogWarning($"Un managed intersections count:{_triangleIntersections.Count} intersections");
+        Debug.LogWarning(FindPointsBelowTheCut(vertices).Count);
+      }
     }
 
     foreach (var point in _allIntersections)
       Debug.DrawLine(point, point + Vector3.up * 0.05f, Color.cyan);
-           
-    _volumeCalculator.PrintRealVolume();    
-    Debug.Log($"started:{_volumeCalculator.VolumeOfMeshByTriangles()}  cut:{_volumeCalculator.VolumeOfMesh(_newTris)}");        
+
+    //TriangulateSlicedSide();
+    //Debug.Log($"started:{_volumeCalculator.VolumeOfMesh(_mesh)}  cut:{VolumeCalculator.VolumeOfMeshByTriangles(_newTris)}");
   }
 
   private List<Vector3> FindIntersections(Vector3[] points)
@@ -100,8 +107,21 @@ public class HorizontalSlicer : MonoBehaviour
   private void AddTrianglesBelowCut(List<Vector3> pointsBelowCut, Vector3 norm)
   {
     _newTris.Add(new Triangle(_triangleIntersections[0], _triangleIntersections[1], pointsBelowCut[0], norm));
-    
-    if (pointsBelowCut.Count == 2)    
-      _newTris.Add(new Triangle(pointsBelowCut[0], pointsBelowCut[1], _triangleIntersections[1], norm));    
+
+    if (pointsBelowCut.Count == 2)
+      _newTris.Add(new Triangle(pointsBelowCut[0], pointsBelowCut[1], _triangleIntersections[1], norm));
+  }
+
+  private void TriangulateSlicedSide()
+  {
+    var center = Vector3.zero;
+    foreach (var vec in _allIntersections) // find average point TODO: for more complex shapes this doesn't work
+      center += vec;
+    center /= _allIntersections.Count;
+
+    for (var i = 0; i < _allIntersections.Count; i++)
+      _newTris.Add(new Triangle(_allIntersections[i], center,
+        i + 1 == _allIntersections.Count ? _allIntersections[i] : _allIntersections[i + 1],
+        _slicerPlane.normal));
   }
 }
