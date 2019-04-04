@@ -20,7 +20,7 @@ public class MeshGenerator : MonoBehaviour
     var indices = new List<int>();
 
     var index = 0;
-    foreach (var thing in _newTris) // generate first slice
+    foreach (var thing in _newTris) // generate slice
     {
       tris.Add(thing.v1);
       tris.Add(thing.v2);

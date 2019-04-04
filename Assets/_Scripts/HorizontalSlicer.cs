@@ -56,8 +56,7 @@ public class HorizontalSlicer : MonoBehaviour
       if (_triangleIntersections.Count == 0 && !_slicerPlane.GetSide(vertices[0]))
         _newTris.Add(new Triangle(vertices));
       else if (_triangleIntersections.Count == 2)
-        //AddTrianglesBelowCut(FindPointsBelowTheCut(vertices), norm);
-        ;
+        AddTrianglesBelowCut(FindPointsBelowTheCut(vertices), norm);        
       else if (_triangleIntersections.Count != 0) // TODO: Resolve special cases when count == 1 and == 3
       {
         Debug.LogWarning($"Un managed intersections count:{_triangleIntersections.Count} intersections");
@@ -68,8 +67,8 @@ public class HorizontalSlicer : MonoBehaviour
     foreach (var point in _allIntersections)
       Debug.DrawLine(point, point + Vector3.up * 0.05f, Color.cyan);
 
-    //TriangulateSlicedSide();
-    //Debug.Log($"started:{_volumeCalculator.VolumeOfMesh(_mesh)}  cut:{VolumeCalculator.VolumeOfMeshByTriangles(_newTris)}");
+    TriangulateSlicedSide();
+    //Debug.Log($"started:{_volumeCalculator.VolumeOfMesh(_mesh)}  cut:{_volumeCalculator.VolumeOfMeshByTriangles(_newTris)}");
   }
 
   private List<Vector3> FindIntersections(Vector3[] points)
