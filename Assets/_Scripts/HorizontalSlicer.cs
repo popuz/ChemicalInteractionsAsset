@@ -43,21 +43,30 @@ public class HorizontalSlicer : MonoBehaviour
     _newTris.Clear();
     _allIntersections.Clear();
 
+
     for (var i = 0; i < _triangles.Length; i += 3)
     {
       var vertices = new Vector3[3];
       for (var j = 0; j < 3; j++)
         vertices[j] = _transform.TransformPoint(_meshVertices[_triangles[i + j]]);
-      var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
 
       _triangleIntersections = FindIntersections(vertices);
-      _allIntersections.AddRange(_triangleIntersections);
 
       if (_triangleIntersections.Count == 0 && !_slicerPlane.GetSide(vertices[0]))
+      {
         _newTris.Add(new Triangle(vertices));
+      }
+      else if (_triangleIntersections.Count == 3)
+      {
+        _newTris.Add(new Triangle(vertices));
+      }
       else if (_triangleIntersections.Count == 2)
-        AddTrianglesBelowCut(FindPointsBelowTheCut(vertices), norm);        
-      else if (_triangleIntersections.Count != 0) // TODO: Resolve special cases when count == 1 and == 3
+      {
+        var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
+        AddTrianglesBelowCut(FindPointsBelowTheCut(vertices), norm);
+        _allIntersections.AddRange(_triangleIntersections);
+      }
+      else if (_triangleIntersections.Count != 0) // TODO: Resolve special cases when count == 1 and == 3. 
       {
         Debug.LogWarning($"Un managed intersections count:{_triangleIntersections.Count} intersections");
         Debug.LogWarning(FindPointsBelowTheCut(vertices).Count);
@@ -68,7 +77,8 @@ public class HorizontalSlicer : MonoBehaviour
       Debug.DrawLine(point, point + Vector3.up * 0.05f, Color.cyan);
 
     TriangulateSlicedSide();
-    //Debug.Log($"started:{_volumeCalculator.VolumeOfMesh(_mesh)}  cut:{_volumeCalculator.VolumeOfMeshByTriangles(_newTris)}");
+    
+    //Debug.Log(_volumeCalculator.VolumeOfMeshByTriangles(_newTris));
   }
 
   private List<Vector3> FindIntersections(Vector3[] points)
@@ -118,9 +128,7 @@ public class HorizontalSlicer : MonoBehaviour
       center += vec;
     center /= _allIntersections.Count;
 
-    for (var i = 0; i < _allIntersections.Count; i++)
-      _newTris.Add(new Triangle(_allIntersections[i], center,
-        i + 1 == _allIntersections.Count ? _allIntersections[i] : _allIntersections[i + 1],
-        _slicerPlane.normal));
+    for (var i = 0; i < _allIntersections.Count; i += 2)
+      _newTris.Add(new Triangle(_allIntersections[i], center, _allIntersections[i + 1], _slicerPlane.normal));
   }
 }
