@@ -1188,7 +1188,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78b37d1883073094c8d1b95e8901b3b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _slicerShift: 0
+  _slicerShift: 0.5
   _slicerPlaneDebugSize: 1.5
 --- !u!114 &1936567553
 MonoBehaviour:

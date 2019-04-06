@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -58,18 +59,27 @@ public class HorizontalSlicer : MonoBehaviour
       }
       else if (_triangleIntersections.Count == 3)
       {
-        _newTris.Add(new Triangle(vertices));
+        Debug.Log(3);
+        var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
+        if (_slicerPlane.normal == norm)
+          _newTris.Add(new Triangle(vertices));
       }
       else if (_triangleIntersections.Count == 2)
       {
-        var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
-        AddTrianglesBelowCut(FindPointsBelowTheCut(vertices), norm);
+        Debug.Log(2);
+        _newTris.AddRange(ConstructTrianglesBelowCut(pointsBelowCut: FindPointsBelowCut(vertices),
+          norm: Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2])));
         _allIntersections.AddRange(_triangleIntersections);
       }
-      else if (_triangleIntersections.Count != 0) // TODO: Resolve special cases when count == 1 and == 3. 
+      // TODO: Resolve special cases when count == 1
+      else if (_triangleIntersections.Count == 1)
       {
-        Debug.LogWarning($"Un managed intersections count:{_triangleIntersections.Count} intersections");
-        Debug.LogWarning(FindPointsBelowTheCut(vertices).Count);
+        Debug.Log(1);
+        var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
+        if (_slicerPlane.normal == norm)
+          _newTris.Add(new Triangle(vertices));
+
+        Debug.Log($"Plane normal: {_slicerPlane.normal} ---- triangle normal:{norm}");
       }
     }
 
@@ -77,7 +87,7 @@ public class HorizontalSlicer : MonoBehaviour
       Debug.DrawLine(point, point + Vector3.up * 0.05f, Color.cyan);
 
     TriangulateSlicedSide();
-    
+
     //Debug.Log(_volumeCalculator.VolumeOfMeshByTriangles(_newTris));
   }
 
@@ -92,7 +102,11 @@ public class HorizontalSlicer : MonoBehaviour
       var direction = points[j] - points[i];
 
       Debug.DrawRay(origin, direction);
-      if (IntersectedByPlane(origin, direction, out var distOnRay))
+
+      // TODO: manage cases when points are on the slice Plane (cases: 1,2 or 3 points)
+      if (Math.Abs(_slicerPlane.GetDistanceToPoint(origin)) < 1E-3f)
+        intersections.Add(origin);
+      else if (IntersectedByPlane(origin, direction, out var distOnRay))
         intersections.Add(origin + distOnRay * direction.normalized);
     }
 
@@ -102,7 +116,7 @@ public class HorizontalSlicer : MonoBehaviour
   private bool IntersectedByPlane(Vector3 origin, Vector3 direction, out float distOnRay)
     => _slicerPlane.Raycast(new Ray(origin, direction), out distOnRay) && distOnRay <= direction.magnitude;
 
-  private List<Vector3> FindPointsBelowTheCut(Vector3[] triangleVertices)
+  private List<Vector3> FindPointsBelowCut(Vector3[] triangleVertices)
   {
     var points = new List<Vector3>();
 
@@ -113,12 +127,16 @@ public class HorizontalSlicer : MonoBehaviour
     return points;
   }
 
-  private void AddTrianglesBelowCut(List<Vector3> pointsBelowCut, Vector3 norm)
+  private List<Triangle> ConstructTrianglesBelowCut(List<Vector3> pointsBelowCut, Vector3 norm)
   {
-    _newTris.Add(new Triangle(_triangleIntersections[0], _triangleIntersections[1], pointsBelowCut[0], norm));
-
-    if (pointsBelowCut.Count == 2)
-      _newTris.Add(new Triangle(pointsBelowCut[0], pointsBelowCut[1], _triangleIntersections[1], norm));
+    return pointsBelowCut.Count == 2
+      ? new List<Triangle>
+      {
+        new Triangle(_triangleIntersections[0], _triangleIntersections[1], pointsBelowCut[0], norm),
+        new Triangle(pointsBelowCut[0], pointsBelowCut[1], _triangleIntersections[1], norm)
+      }
+      : new List<Triangle>
+        {new Triangle(_triangleIntersections[0], _triangleIntersections[1], pointsBelowCut[0], norm)};
   }
 
   private void TriangulateSlicedSide()

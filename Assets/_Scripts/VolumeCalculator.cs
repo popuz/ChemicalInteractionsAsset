@@ -16,9 +16,7 @@ public class VolumeCalculator : MonoBehaviour
   public float GetMeshVolume() => VolumeOfMesh(_mesh);
 
   private float VolumeOfMesh(Mesh mesh)
-  {
-    Debug.Log(mesh.triangles.Length);
-
+  {    
     var volume = 0f;
     var vertices = mesh.vertices;
     var triangles = mesh.triangles;
