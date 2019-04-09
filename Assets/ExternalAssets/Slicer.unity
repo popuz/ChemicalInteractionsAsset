@@ -555,7 +555,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78b37d1883073094c8d1b95e8901b3b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _slicerShift: 0.29
+  _slicerShift: 0
   _slicerPlaneDebugSize: 1
 --- !u!33 &648526911
 MeshFilter:
@@ -627,7 +627,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78b37d1883073094c8d1b95e8901b3b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _slicerShift: 0.19
+  _slicerShift: 0
   _slicerPlaneDebugSize: 1
 --- !u!1 &1079108159 stripped
 GameObject:
@@ -647,7 +647,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78b37d1883073094c8d1b95e8901b3b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _slicerShift: 0.22
+  _slicerShift: 0
   _slicerPlaneDebugSize: 1
 --- !u!4 &1079108163 stripped
 Transform:
@@ -1169,13 +1169,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1936567546}
-  m_LocalRotation: {x: 0, y: 0, z: 0.92387956, w: 0.38268343}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 1364108907}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 135}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1936567552
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1188,7 +1188,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78b37d1883073094c8d1b95e8901b3b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _slicerShift: 0
+  _slicerShift: 0.5
   _slicerPlaneDebugSize: 1.5
 --- !u!114 &1936567553
 MonoBehaviour:
@@ -1336,7 +1336,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78b37d1883073094c8d1b95e8901b3b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _slicerShift: 0.25
+  _slicerShift: 0
   _slicerPlaneDebugSize: 1.5
 --- !u!4 &2089248100
 Transform:

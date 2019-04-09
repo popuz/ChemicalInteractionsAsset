@@ -8,6 +8,7 @@ using UnityEngine.Serialization;
 //[ExecuteInEditMode]
 public class HorizontalSlicer : MonoBehaviour
 {
+  Coroutine abs;
   private const float EPS = 1E-6f;
   [SerializeField] private float _slicerShift;
   [SerializeField] private float _slicerPlaneDebugSize = 1f;
@@ -24,6 +25,11 @@ public class HorizontalSlicer : MonoBehaviour
 
   private VolumeCalculator _volumeCalculator;
 
+  public float SlicerShift
+  {
+    set => _slicerShift = value;
+  }
+
   public List<Triangle> SlicedTris => _newTris;
 
   private void OnValidate()
@@ -36,17 +42,24 @@ public class HorizontalSlicer : MonoBehaviour
     _volumeCalculator = GetComponent<VolumeCalculator>();
   }
 
-  private void OnDrawGizmosSelected()
-  {
+  private void OnDrawGizmosSelected() =>
     Gizmos.DrawCube(transform.position + Vector3.up * _slicerShift,
       new Vector3(_slicerPlaneDebugSize, 0.0001f, _slicerPlaneDebugSize));
 
-    Gizmos.DrawSphere(_transform.TransformPoint(_meshVertices[_triangles[0]]), 0.1f);
-  }
-
   private void Update()
   {
-    // TODO: Garbage collected! Improve! Use Translate func of the Plane class
+    MakeSlice();
+
+    foreach (var point in _allIntersections)
+      Debug.DrawLine(point, point + Vector3.up * 0.05f, Color.cyan);
+
+    TriangulateSlicedSide();
+    //Debug.Log(_volumeCalculator.VolumeOfMeshByTriangles(_newTris));
+  }
+
+  public void MakeSlice()
+  {
+    // TODO: Garbage collected! Improve! Use Translate func of the Plane class or just simple Y position
     // TODO: Even more - write own simplified Plane class with always normal == Vector3.up 
     _slicerPlane = new Plane(Vector3.down, transform.position + Vector3.up * _slicerShift);
 
@@ -63,22 +76,28 @@ public class HorizontalSlicer : MonoBehaviour
         vertDistToPlane[j] = vertices[j].y - _slicerPlane.distance;
       }
 
+      var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
       // 2 or 3 points are on the Plane or all of them are below the Plane
       if (vertDistToPlane[0] <= EPS && vertDistToPlane[1] <= EPS && vertDistToPlane[2] <= EPS)
       {
-        _newTris.Add(new Triangle(vertices));
+        if (!(Math.Abs(vertDistToPlane[0]) <= EPS && Math.Abs(vertDistToPlane[1]) <= EPS &&
+              Math.Abs(vertDistToPlane[2]) <= EPS))
+          _newTris.Add(new Triangle(vertices));                
 
-        if (Math.Abs(vertDistToPlane[0]) <= EPS && Math.Abs(vertDistToPlane[1]) <= EPS)
+        if (Math.Abs(vertDistToPlane[0]) <= EPS && Math.Abs(vertDistToPlane[1]) <= EPS &&
+            Math.Abs(vertDistToPlane[2]) > EPS)
         {
           _allIntersections.Add(vertices[0]);
           _allIntersections.Add(vertices[1]);
         }
-        else if (Math.Abs(vertDistToPlane[1]) <= EPS && Math.Abs(vertDistToPlane[2]) <= EPS)
+        else if (Math.Abs(vertDistToPlane[1]) <= EPS && Math.Abs(vertDistToPlane[2]) <= EPS &&
+                 Math.Abs(vertDistToPlane[0]) > EPS)
         {
           _allIntersections.Add(vertices[1]);
           _allIntersections.Add(vertices[2]);
         }
-        else if (Math.Abs(vertDistToPlane[2]) <= EPS && Math.Abs(vertDistToPlane[0]) <= EPS)
+        else if (Math.Abs(vertDistToPlane[2]) <= EPS && Math.Abs(vertDistToPlane[0]) <= EPS &&
+                 Math.Abs(vertDistToPlane[1]) > EPS)
         {
           _allIntersections.Add(vertices[2]);
           _allIntersections.Add(vertices[0]);
@@ -92,7 +111,6 @@ public class HorizontalSlicer : MonoBehaviour
         if (Math.Abs(vertDistToPlane[1]) <= EPS && vertDistToPlane[0] * vertDistToPlane[2] > -EPS) continue;
         if (Math.Abs(vertDistToPlane[2]) <= EPS && vertDistToPlane[1] * vertDistToPlane[0] > -EPS) continue;
 
-        var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
         int i0 = 0, i1 = 1, i2 = 2;
 
         if (Math.Abs(vertDistToPlane[2]) <= EPS)
@@ -120,15 +138,28 @@ public class HorizontalSlicer : MonoBehaviour
         _allIntersections.Add(vertices[i0]);
         _allIntersections.Add(cutVertex);
       }
-      else if (vertDistToPlane[0] * vertDistToPlane[1] > 0)
-      {
-      }
-      else if (vertDistToPlane[1] * vertDistToPlane[2] > 0)
-      {
-      }
-      else if (vertDistToPlane[2] * vertDistToPlane[0] > 0)
-      {
-      }
+//      else if (vertDistToPlane[0] * vertDistToPlane[1] < 0)
+//      {
+//        _slicerPlane.Raycast(new Ray(vertices[0], vertices[1] - vertices[0]), out var distOnRay);
+//        var cutVertex = (vertices[0] + distOnRay * (vertices[1] - vertices[0]).normalized);
+//        _newTris.Add(new Triangle(vertices[0], cutVertex, vertices[2], norm));
+//        _allIntersections.Add(cutVertex);
+//      }
+//      else if (vertDistToPlane[1] * vertDistToPlane[2] < 0)
+//      {
+//        _slicerPlane.Raycast(new Ray(vertices[1], vertices[2] - vertices[1]), out var distOnRay);
+//        var cutVertex = (vertices[1] + distOnRay * (vertices[2] - vertices[1]).normalized);
+//        _newTris.Add(new Triangle(vertices[0], cutVertex, vertices[1], norm));
+//        _allIntersections.Add(cutVertex);
+//      }
+//      else if (vertDistToPlane[2] * vertDistToPlane[0] < 0)
+//      {
+//        _slicerPlane.Raycast(new Ray(vertices[2], vertices[0] - vertices[2]), out var distOnRay);
+//        var cutVertex = (vertices[2] + distOnRay * (vertices[0] - vertices[2]).normalized);
+//        _newTris.Add(new Triangle(vertices[1], cutVertex, vertices[2], norm));
+//        _allIntersections.Add(cutVertex);
+//      }
+
 
 //      else if (_triangleIntersections.Count == 2)
 //      {
@@ -138,12 +169,6 @@ public class HorizontalSlicer : MonoBehaviour
 //        _allIntersections.AddRange(_triangleIntersections);
 //      }
     }
-
-    foreach (var point in _allIntersections)
-      Debug.DrawLine(point, point + Vector3.up * 0.05f, Color.cyan);
-
-    TriangulateSlicedSide();
-    //Debug.Log(_volumeCalculator.VolumeOfMeshByTriangles(_newTris));
   }
 
   private List<Vector3> FindIntersections(Vector3[] points)
@@ -191,13 +216,13 @@ public class HorizontalSlicer : MonoBehaviour
         {new Triangle(_triangleIntersections[0], _triangleIntersections[1], pointsBelowCut[0], norm)};
   }
 
-  private void TriangulateSlicedSide()
+  public void TriangulateSlicedSide()
   {
     var center = Vector3.zero;
     foreach (var vec in _allIntersections) // find average point TODO: for more complex shapes this doesn't work
       center += vec;
     center /= _allIntersections.Count;
-    
+
     for (var i = 0; i < _allIntersections.Count; i += 2)
       _newTris.Add(new Triangle(_allIntersections[i], center, _allIntersections[i + 1], -_slicerPlane.normal));
   }
