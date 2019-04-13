@@ -73,43 +73,57 @@ public class HorizontalSlicer : MonoBehaviour
       for (var j = 0; j < 3; j++)
       {
         vertices[j] = _transform.TransformPoint(_meshVertices[_triangles[i + j]]);
-        vertDistToPlane[j] = vertices[j].y - _slicerPlane.distance;
+        vertDistToPlane[j] = vertices[j].y - _slicerPlane.distance;       
       }
 
       var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
-      // 2 or 3 points are on the Plane or all of them are below the Plane
+
+      // if 3 vertices are on the plane
+      if (Math.Abs(vertDistToPlane[0]) <= EPS && Math.Abs(vertDistToPlane[1]) <= EPS &&
+          Math.Abs(vertDistToPlane[2]) <= EPS)
+      {
+        _newTris.Add(new Triangle(vertices));
+        continue;
+      }
+
+      // if 3 vertices are below the plane
+      if (vertDistToPlane[0] < 0 && vertDistToPlane[1] < 0 && vertDistToPlane[2] < 0)
+      {
+        _newTris.Add(new Triangle(vertices));
+        continue;
+      }
+
+      // 2 are on the Plane and 1 below the plane
       if (vertDistToPlane[0] <= EPS && vertDistToPlane[1] <= EPS && vertDistToPlane[2] <= EPS)
       {
-        if (!(Math.Abs(vertDistToPlane[0]) <= EPS && Math.Abs(vertDistToPlane[1]) <= EPS &&
-              Math.Abs(vertDistToPlane[2]) <= EPS))
-          _newTris.Add(new Triangle(vertices));                
-
         if (Math.Abs(vertDistToPlane[0]) <= EPS && Math.Abs(vertDistToPlane[1]) <= EPS &&
-            Math.Abs(vertDistToPlane[2]) > EPS)
+            Math.Abs(vertDistToPlane[2]) < 0)
         {
           _allIntersections.Add(vertices[0]);
           _allIntersections.Add(vertices[1]);
         }
         else if (Math.Abs(vertDistToPlane[1]) <= EPS && Math.Abs(vertDistToPlane[2]) <= EPS &&
-                 Math.Abs(vertDistToPlane[0]) > EPS)
+                 Math.Abs(vertDistToPlane[0]) < 0)
         {
           _allIntersections.Add(vertices[1]);
           _allIntersections.Add(vertices[2]);
         }
         else if (Math.Abs(vertDistToPlane[2]) <= EPS && Math.Abs(vertDistToPlane[0]) <= EPS &&
-                 Math.Abs(vertDistToPlane[1]) > EPS)
+                 Math.Abs(vertDistToPlane[1]) < 0)
         {
           _allIntersections.Add(vertices[2]);
           _allIntersections.Add(vertices[0]);
         }
+        
+        _newTris.Add(new Triangle(vertices));        
       }
       // 1 point is one the Plane and other are in different sides of the Plane
       else if (Math.Abs(vertDistToPlane[0] * vertDistToPlane[1] * vertDistToPlane[2]) <= EPS)
       {
         // Make sure that vertices is on opposite sides and not on the Plane
-        if (Math.Abs(vertDistToPlane[0]) <= EPS && vertDistToPlane[1] * vertDistToPlane[2] > -EPS) continue;
-        if (Math.Abs(vertDistToPlane[1]) <= EPS && vertDistToPlane[0] * vertDistToPlane[2] > -EPS) continue;
-        if (Math.Abs(vertDistToPlane[2]) <= EPS && vertDistToPlane[1] * vertDistToPlane[0] > -EPS) continue;
+        if (Math.Abs(vertDistToPlane[0]) <= EPS && vertDistToPlane[1] * vertDistToPlane[2] > 0) continue;
+        if (Math.Abs(vertDistToPlane[1]) <= EPS && vertDistToPlane[0] * vertDistToPlane[2] > 0) continue;
+        if (Math.Abs(vertDistToPlane[2]) <= EPS && vertDistToPlane[1] * vertDistToPlane[0] > 0) continue;
 
         int i0 = 0, i1 = 1, i2 = 2;
 
