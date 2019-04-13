@@ -21,7 +21,6 @@ public class HorizontalSlicer : MonoBehaviour
 
   private List<Vector3> _allIntersections = new List<Vector3>();
   private List<Vector3> _triangleIntersections = new List<Vector3>();
-  private List<Triangle> _newTris = new List<Triangle>(); // list that stores the triangles for first slice   
 
   private VolumeCalculator _volumeCalculator;
 
@@ -30,14 +29,15 @@ public class HorizontalSlicer : MonoBehaviour
     set => _slicerShift = value;
   }
 
-  public List<Triangle> SlicedTris => _newTris;
+  public List<Triangle> SlicedTris { get; } = new List<Triangle>();
 
   private void OnValidate()
   {
     _transform = gameObject.transform;
-    _mesh = GetComponent<MeshFilter>().sharedMesh;
-    _triangles = _mesh.triangles;
-    _meshVertices = _mesh.vertices;
+
+    _mesh = GetComponent<MeshFilter>() != null ? GetComponent<MeshFilter>().sharedMesh : null;
+    _triangles = _mesh != null ? _mesh.triangles : null;
+    _meshVertices = _mesh != null ? _mesh.vertices : null;
 
     _volumeCalculator = GetComponent<VolumeCalculator>();
   }
@@ -59,11 +59,12 @@ public class HorizontalSlicer : MonoBehaviour
 
   public void MakeSlice()
   {
+    if (_triangles == null) return;
     // TODO: Garbage collected! Improve! Use Translate func of the Plane class or just simple Y position
     // TODO: Even more - write own simplified Plane class with always normal == Vector3.up 
     _slicerPlane = new Plane(Vector3.down, transform.position + Vector3.up * _slicerShift);
 
-    _newTris.Clear();
+    SlicedTris.Clear();
     _allIntersections.Clear();
 
     for (var i = 0; i < _triangles.Length; i += 3)
@@ -73,85 +74,86 @@ public class HorizontalSlicer : MonoBehaviour
       for (var j = 0; j < 3; j++)
       {
         vertices[j] = _transform.TransformPoint(_meshVertices[_triangles[i + j]]);
-        vertDistToPlane[j] = vertices[j].y - _slicerPlane.distance;       
+        vertDistToPlane[j] = vertices[j].y - _slicerPlane.distance;
       }
 
       var norm = Vector3.Cross(vertices[0] - vertices[1], vertices[0] - vertices[2]);
 
-      // if 3 vertices are on the plane
-      if (Math.Abs(vertDistToPlane[0]) <= EPS && Math.Abs(vertDistToPlane[1]) <= EPS &&
-          Math.Abs(vertDistToPlane[2]) <= EPS)
+//      // if 3 vertices are on the plane
+      if (Math.Abs(vertDistToPlane[0]) < EPS && Math.Abs(vertDistToPlane[1]) < EPS &&
+          Math.Abs(vertDistToPlane[2]) < EPS)
       {
-        _newTris.Add(new Triangle(vertices));
-        continue;
+        SlicedTris.Add(new Triangle(vertices));        
       }
-
-      // if 3 vertices are below the plane
-      if (vertDistToPlane[0] < 0 && vertDistToPlane[1] < 0 && vertDistToPlane[2] < 0)
-      {
-        _newTris.Add(new Triangle(vertices));
-        continue;
-      }
-
-      // 2 are on the Plane and 1 below the plane
-      if (vertDistToPlane[0] <= EPS && vertDistToPlane[1] <= EPS && vertDistToPlane[2] <= EPS)
-      {
-        if (Math.Abs(vertDistToPlane[0]) <= EPS && Math.Abs(vertDistToPlane[1]) <= EPS &&
-            Math.Abs(vertDistToPlane[2]) < 0)
-        {
-          _allIntersections.Add(vertices[0]);
-          _allIntersections.Add(vertices[1]);
-        }
-        else if (Math.Abs(vertDistToPlane[1]) <= EPS && Math.Abs(vertDistToPlane[2]) <= EPS &&
-                 Math.Abs(vertDistToPlane[0]) < 0)
-        {
-          _allIntersections.Add(vertices[1]);
-          _allIntersections.Add(vertices[2]);
-        }
-        else if (Math.Abs(vertDistToPlane[2]) <= EPS && Math.Abs(vertDistToPlane[0]) <= EPS &&
-                 Math.Abs(vertDistToPlane[1]) < 0)
-        {
-          _allIntersections.Add(vertices[2]);
-          _allIntersections.Add(vertices[0]);
-        }
-        
-        _newTris.Add(new Triangle(vertices));        
-      }
-      // 1 point is one the Plane and other are in different sides of the Plane
-      else if (Math.Abs(vertDistToPlane[0] * vertDistToPlane[1] * vertDistToPlane[2]) <= EPS)
-      {
-        // Make sure that vertices is on opposite sides and not on the Plane
-        if (Math.Abs(vertDistToPlane[0]) <= EPS && vertDistToPlane[1] * vertDistToPlane[2] > 0) continue;
-        if (Math.Abs(vertDistToPlane[1]) <= EPS && vertDistToPlane[0] * vertDistToPlane[2] > 0) continue;
-        if (Math.Abs(vertDistToPlane[2]) <= EPS && vertDistToPlane[1] * vertDistToPlane[0] > 0) continue;
-
-        int i0 = 0, i1 = 1, i2 = 2;
-
-        if (Math.Abs(vertDistToPlane[2]) <= EPS)
-        {
-          i0 = 2;
-          i1 = vertDistToPlane[0] > 0 ? 0 : 1;
-          i2 = vertDistToPlane[0] > 0 ? 1 : 0;
-        }
-        else if (Math.Abs(vertDistToPlane[1]) <= EPS)
-        {
-          i0 = 1;
-          i1 = vertDistToPlane[0] > 0 ? 0 : 2;
-          i2 = vertDistToPlane[0] > 0 ? 2 : 0;
-        }
-        else if (Math.Abs(vertDistToPlane[0]) <= EPS)
-        {
-          i1 = vertDistToPlane[1] > 0 ? 1 : 2;
-          i2 = vertDistToPlane[1] > 0 ? 2 : 1;
-        }
-
-        _slicerPlane.Raycast(new Ray(vertices[i1], vertices[i2] - vertices[i1]), out var distOnRay);
-        var cutVertex = (vertices[i1] + distOnRay * (vertices[i2] - vertices[i1]).normalized);
-        _newTris.Add(new Triangle(vertices[i0], cutVertex, vertices[i2], norm));
-
-        _allIntersections.Add(vertices[i0]);
-        _allIntersections.Add(cutVertex);
-      }
+//
+//      // if 3 vertices are below the plane
+//      if (vertDistToPlane[0] < 0 && vertDistToPlane[1] < 0 && vertDistToPlane[2] < 0)
+//      {
+//        SlicedTris.Add(new Triangle(vertices));
+//        continue;
+//      }
+//
+//      // 2 are on the Plane and 1 below the plane
+//      if (vertDistToPlane[0] <= EPS && vertDistToPlane[1] <= EPS && vertDistToPlane[2] <= EPS)
+//      {
+//        if (Math.Abs(vertDistToPlane[0]) <= EPS && Math.Abs(vertDistToPlane[1]) <= EPS &&
+//            Math.Abs(vertDistToPlane[2]) < 0)
+//        {
+//          _allIntersections.Add(vertices[0]);
+//          _allIntersections.Add(vertices[1]);
+//        }
+//        else if (Math.Abs(vertDistToPlane[1]) <= EPS && Math.Abs(vertDistToPlane[2]) <= EPS &&
+//                 Math.Abs(vertDistToPlane[0]) < 0)
+//        {
+//          _allIntersections.Add(vertices[1]);
+//          _allIntersections.Add(vertices[2]);
+//        }
+//        else if (Math.Abs(vertDistToPlane[2]) <= EPS && Math.Abs(vertDistToPlane[0]) <= EPS &&
+//                 Math.Abs(vertDistToPlane[1]) < 0)
+//        {
+//          _allIntersections.Add(vertices[2]);
+//          _allIntersections.Add(vertices[0]);
+//        }
+//
+//        SlicedTris.Add(new Triangle(vertices));
+//      }
+//      // 1 point is one the Plane and other are in different sides of the Plane
+//      else if (Math.Abs(vertDistToPlane[0] * vertDistToPlane[1] * vertDistToPlane[2]) <= EPS)
+//      {
+//        // Make sure that vertices is on opposite sides and not on the Plane
+//        if (Math.Abs(vertDistToPlane[0]) <= EPS && vertDistToPlane[1] * vertDistToPlane[2] > 0) continue;
+//        if (Math.Abs(vertDistToPlane[1]) <= EPS && vertDistToPlane[0] * vertDistToPlane[2] > 0) continue;
+//        if (Math.Abs(vertDistToPlane[2]) <= EPS && vertDistToPlane[1] * vertDistToPlane[0] > 0) continue;
+//
+//        int i0 = 0, i1 = 1, i2 = 2;
+//
+//        if (Math.Abs(vertDistToPlane[2]) <= EPS)
+//        {
+//          i0 = 2;
+//          i1 = vertDistToPlane[0] > 0 ? 0 : 1;
+//          i2 = vertDistToPlane[0] > 0 ? 1 : 0;
+//        }
+//        else if (Math.Abs(vertDistToPlane[1]) <= EPS)
+//        {
+//          i0 = 1;
+//          i1 = vertDistToPlane[0] > 0 ? 0 : 2;
+//          i2 = vertDistToPlane[0] > 0 ? 2 : 0;
+//        }
+//        else if (Math.Abs(vertDistToPlane[0]) <= EPS)
+//        {
+//          i1 = vertDistToPlane[1] > 0 ? 1 : 2;
+//          i2 = vertDistToPlane[1] > 0 ? 2 : 1;
+//        }
+//
+//        _slicerPlane.Raycast(new Ray(vertices[i1], vertices[i2] - vertices[i1]), out var distOnRay);
+//        var cutVertex = (vertices[i1] + distOnRay * (vertices[i2] - vertices[i1]).normalized);
+//        SlicedTris.Add(new Triangle(vertices[i0], cutVertex, vertices[i2], norm));
+//
+//        _allIntersections.Add(vertices[i0]);
+//        _allIntersections.Add(cutVertex);
+//      }
+      
+      
 //      else if (vertDistToPlane[0] * vertDistToPlane[1] < 0)
 //      {
 //        _slicerPlane.Raycast(new Ray(vertices[0], vertices[1] - vertices[0]), out var distOnRay);
@@ -238,6 +240,6 @@ public class HorizontalSlicer : MonoBehaviour
     center /= _allIntersections.Count;
 
     for (var i = 0; i < _allIntersections.Count; i += 2)
-      _newTris.Add(new Triangle(_allIntersections[i], center, _allIntersections[i + 1], -_slicerPlane.normal));
+      SlicedTris.Add(new Triangle(_allIntersections[i], center, _allIntersections[i + 1], -_slicerPlane.normal));
   }
 }
