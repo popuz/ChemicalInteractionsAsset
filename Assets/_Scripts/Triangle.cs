@@ -4,22 +4,26 @@ public struct Triangle
 {
   public Vector3 v1, v2, v3;
 
+  public Vector3 this[int id]
+  {
+    get
+    {
+      if (id <= 0) return v1;
+      if (id == 1) return v2;
+      if (id >= 2) return v3;
+      return default;
+    }
+  }
+
   public Triangle(Vector3[] vertices)
   {
     v1 = vertices[0];
     v2 = vertices[1];
     v3 = vertices[2];
   }
-  
-  public Triangle(Vector3 v1, Vector3 v2, Vector3 v3)
-  {
-    this.v1 = v1;
-    this.v2 = v2;
-    this.v3 = v3;
-  }
-  
+
   public Triangle(Vector3 v1, Vector3 v2, Vector3 v3, Vector3 norm)
-  {    
+  {
     this.v1 = v1;
     this.v2 = v2;
     this.v3 = v3;
@@ -35,7 +39,7 @@ public struct Triangle
   private bool IsNormalCodirectional(Vector3 dir) => Vector3.Dot(GetNormalDirection(), dir) > 0;
 
   private Vector3 GetNormalDirection() => Vector3.Cross(v1 - v2, v1 - v3);
-  
+
   private void SwapVertices()
   {
     var tmp = v2;
