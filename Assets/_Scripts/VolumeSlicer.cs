@@ -53,42 +53,49 @@ public class VolumeSlicer
       else if (Math.Abs(vDistToPlane[0]) <= EPS || Math.Abs(vDistToPlane[1]) <= EPS ||
                Math.Abs(vDistToPlane[2]) <= EPS)
       {
-//        if (vertDistToPlane[0] * vertDistToPlane[1] < -EPS) continue;
-//        if (vertDistToPlane[1] * vertDistToPlane[2] < -EPS) continue;
-//        if (vertDistToPlane[2] * vertDistToPlane[0] < -EPS) continue;
-
         if (vDistToPlane[0] < -EPS || vDistToPlane[1] < -EPS || vDistToPlane[2] < -EPS)
+        {
+          var idBelowSlice = vDistToPlane[1] < -EPS ? 1 : vDistToPlane[2] < -EPS ? 2 : 0;
+          var idAboveSlice = vDistToPlane[2] > EPS ? 2 : vDistToPlane[0] > EPS ? 0 : 1;
+
+          MoveVerticexToTheCutPlane(vertices[idBelowSlice], ref vertices[idAboveSlice]);
           slicedTris.Add(new Triangle(vertices));
+        }
       }
       else if (vDistToPlane[0] < -EPS || vDistToPlane[1] < -EPS || vDistToPlane[2] < -EPS)
       {
-//        if (vertDistToPlane[0] * vertDistToPlane[1] < -EPS || vertDistToPlane[1] * vertDistToPlane[2] < -EPS
-//                                                           || vertDistToPlane[2] * vertDistToPlane[0] < -EPS)
-        {
-          SliceTriangleInMiddle(vDistToPlane, vertices);
-          slicedTris.Add(new Triangle(vertices));
-        }
+        SliceTriangleInMiddle(vDistToPlane, vertices);
+        slicedTris.Add(new Triangle(vertices));
       }
     }
 
     return slicedTris;
   }
 
-
   private void SliceTriangleInMiddle(float[] vDistToPlane, Vector3[] vertices)
   {
     var idBelow = vDistToPlane[0] < -EPS ? 0 : vDistToPlane[1] < -EPS ? 1 : 2;
     var idUnder1 = vDistToPlane[0] < -EPS ? 1 : vDistToPlane[1] < -EPS ? 2 : 0;
     var idUnder2 = vDistToPlane[0] < -EPS ? 2 : vDistToPlane[1] < -EPS ? 0 : 1;
-        
+
     if (vDistToPlane[idUnder1] * vDistToPlane[idUnder2] > 0)
-    {      
-      MoveVerticesToTheCutPlane(vertices[idBelow], ref vertices[idUnder1]);
-      MoveVerticesToTheCutPlane(vertices[idBelow], ref vertices[idUnder2]);
-    }    
+    {
+      MoveVerticexToTheCutPlane(vertices[idBelow], ref vertices[idUnder1]);
+      MoveVerticexToTheCutPlane(vertices[idBelow], ref vertices[idUnder2]);
+    }
+    else if (vDistToPlane[idBelow] * vDistToPlane[idUnder1] > 0)
+    {
+      MoveVerticexToTheCutPlane(vertices[idBelow], ref vertices[idUnder2]);
+      MoveVerticexToTheCutPlane(vertices[idUnder1], ref vertices[idUnder2]);
+    }
+    else if (vDistToPlane[idBelow] * vDistToPlane[idUnder2] > 0)
+    {
+      MoveVerticexToTheCutPlane(vertices[idBelow], ref vertices[idUnder1]);
+      MoveVerticexToTheCutPlane(vertices[idUnder2], ref vertices[idUnder1]);
+    }
   }
 
-  private void MoveVerticesToTheCutPlane(Vector3 belowPlaneVertex, ref Vector3 underPlaneVertex)
+  private void MoveVerticexToTheCutPlane(Vector3 belowPlaneVertex, ref Vector3 underPlaneVertex)
   {
     underPlaneVertex.x =
       (_slicerShift - belowPlaneVertex.y) * (underPlaneVertex.x - belowPlaneVertex.x) /
