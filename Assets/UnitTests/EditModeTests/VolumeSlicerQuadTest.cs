@@ -15,7 +15,7 @@ public class VolumeSlicerQuadTest
     slicer.Init(objectToSlice);
     Assert.AreEqual(expected, slicer.MakeSlice().Count);
   }
-  
+
   private static int AmountOfVerticesBelowTheSlice(List<Triangle> tris, float slicerShift)
   {
     var vAmount = 0;
@@ -57,7 +57,7 @@ public class VolumeSlicerQuadTest
   {
     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
     slicer = new VolumeSlicer(-0.5f);
-    
+
     AssertSlicedTrianglesCount(0, go);
   }
 
@@ -67,10 +67,10 @@ public class VolumeSlicerQuadTest
 
   [Test]
   public void SliceUnderQuad_ReturnsAllTriangles()
-  {    
+  {
     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
     var mesh = go.GetComponent<MeshFilter>().sharedMesh;
-    
+
     slicer = new VolumeSlicer(1f);
 
     AssertSlicedTrianglesCount(mesh.triangles.Length / 3, go);
@@ -78,27 +78,27 @@ public class VolumeSlicerQuadTest
 
   [Test]
   public void OnTopSliceOfQuad_ReturnsAllTriangles()
-  {    
+  {
     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
     var mesh = go.GetComponent<MeshFilter>().sharedMesh;
-    
+
     slicer = new VolumeSlicer(0.5f);
 
     AssertSlicedTrianglesCount(mesh.triangles.Length / 3, go);
   }
-  
+
   [TestCase(45f)]
   [TestCase(-45f)]
   public void SliceOnTop_IntersectOneVertex_ReturnsAllTriangles(float rot)
-  {    
+  {
     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
     var mesh = go.GetComponent<MeshFilter>().sharedMesh;
-    go.transform.Rotate(Vector3.forward, rot);
-    
+    go.transform.Rotate(Vector3.right, rot);
+
     slicer = new VolumeSlicer(0.5f);
 
     AssertSlicedTrianglesCount(mesh.triangles.Length / 3, go);
-  }   
+  }
 
   [Test]
   public void InPlaneSliceOfQuad_ReturnsAllTriangles()
@@ -114,6 +114,7 @@ public class VolumeSlicerQuadTest
   #endregion
 
   #region TIRANGLES CASES 
+
   [TestCase(0.49f)]
   [TestCase(0.25f)]
   [TestCase(0)]
@@ -126,7 +127,7 @@ public class VolumeSlicerQuadTest
 
     AssertSlicedTrianglesCount(3, go);
   }
-  
+
   [TestCase(0.25f)]
   public void SliceTwoTrianglesInRotatedQuad_AboveCenter_ReturnsFourTriangles(float slicerShift)
   {
@@ -136,10 +137,10 @@ public class VolumeSlicerQuadTest
     go.transform.Rotate(Vector3.forward, 45);
 
     AssertSlicedTrianglesCount(4, go);
-  }    
-  
+  }
+
   [Test]
-  public void SliceOneTriangleInRotatedQuad_ReturnsTwoTrianglePlusRemainedBelow()
+  public void SliceOneTriangleInRotatedQuad_AboveMiddle_ReturnsTwoTrianglePlusRemainedBelow()
   {
     slicer = new VolumeSlicer(0.25f);
     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -148,10 +149,10 @@ public class VolumeSlicerQuadTest
 
     AssertSlicedTrianglesCount(3, go);
   }
-   
+
   [TestCase(0f)]
   [TestCase(-0.25f)]
-  public void SliceTwoTrianglesInRotatedQuad_ReturnsTwoTriangles(float slicerShift)
+  public void SliceTwoTrianglesInRotatedQuad_OnMiddle_ReturnsTwoTriangles(float slicerShift)
   {
     slicer = new VolumeSlicer(slicerShift);
     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -159,10 +160,10 @@ public class VolumeSlicerQuadTest
     go.transform.Rotate(Vector3.forward, 45);
 
     AssertSlicedTrianglesCount(2, go);
-  }    
-  
+  }
+
   [TestCase(0f)]
-  [TestCase(-0.25f)]  
+  [TestCase(-0.25f)]
   public void SliceOneLastTriangleInRotatedQuad_ReturnsOneTriangle(float slicerShift)
   {
     slicer = new VolumeSlicer(slicerShift);
@@ -172,6 +173,7 @@ public class VolumeSlicerQuadTest
 
     AssertSlicedTrianglesCount(1, go);
   }
+
   #endregion
 
   [TestCase(1f, 0f)]
@@ -181,41 +183,44 @@ public class VolumeSlicerQuadTest
   {
     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
     go.transform.Rotate(Vector3.right, quadRotation);
+    
     slicer = new VolumeSlicer(slicerShift);
     slicer.Init(go);
-
     var tris = slicer.MakeSlice();
 
     Assert.AreEqual(tris.Count * 3, AmountOfVerticesBelowTheSlice(tris, slicerShift));
   }
 
-  [TestCase(0.25f)]
-  [TestCase(0f)]
-  [TestCase(-0.25f)]
-  public void SliceOnRotatedQuad_HasAllVertices_BelowTheCut(float slicerShift)
-  {    
+  [TestCase(0.25f,-45f)]
+  [TestCase(0f,-45f)]
+  [TestCase(-0.25f,-45f)]
+  [TestCase(0.25f,45f)]
+  [TestCase(0f,45f)]
+  [TestCase(-0.25f,45f)]
+  public void SliceOnRotatedQuad_HasAllVertices_BelowTheCut(float slicerShift, float quadRotation)
+  {
     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
-    go.transform.Rotate(Vector3.forward, -45);
-    
+    go.transform.Rotate(Vector3.forward, quadRotation);
+
     slicer = new VolumeSlicer(slicerShift);
     slicer.Init(go);
     var tris = slicer.MakeSlice();
 
     Assert.AreEqual(tris.Count * 3, AmountOfVerticesBelowTheSlice(tris, slicerShift));
-  }   
-  
-  //[TestCase(0.25f)]    
+  }
+
+  [TestCase(0.25f)]    
   [TestCase(0f)]
   [TestCase(-0.25f)]
-  public void SliceTwoTrianglesInRotatedQuad_HasAllVertices_BelowTheCut(float slicerShift)
+  public void SliceRotatedQuad_PerpendicularToTriangles_ReturnedTrianglesAreNotCoincides(float slicerShift)
   {
     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
     go.transform.Rotate(Vector3.forward, 45);
-    
+
     slicer = new VolumeSlicer(slicerShift);
     slicer.Init(go);
     var tris = slicer.MakeSlice();
 
-    Assert.AreEqual(tris.Count * 3, AmountOfVerticesBelowTheSlice(tris, slicerShift));
-  }    
+    Assert.IsFalse(tris[0].v1 == tris[1].v1 && tris[0].v2 == tris[1].v2 && tris[0].v3 == tris[1].v3);
+  }
 }
