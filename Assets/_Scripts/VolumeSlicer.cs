@@ -5,7 +5,7 @@ using UnityEngine;
 public class VolumeSlicer
 {
   private const float EPS = 1E-6f;
-  private readonly float _slicerShift;
+  private float _slicerShift;
 
   private Mesh _mesh;
   private Transform _meshTransform;
@@ -13,6 +13,7 @@ public class VolumeSlicer
   private int[] _meshTriangles = new int[0];
   private Vector3[] _meshVertices;
 
+  public float SlicerShift { set => _slicerShift = value; }
   public VolumeSlicer(float slicerShift) => _slicerShift = slicerShift;
 
   public void Init(GameObject objectToSlice)

@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
-using UnityEngine.Experimental.UIElements;
-using UnityEngine.Serialization;
 
 //[ExecuteInEditMode]
 public class HorizontalSlicer : MonoBehaviour
