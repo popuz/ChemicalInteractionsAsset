@@ -13,7 +13,11 @@ public class VolumeSlicer
   private int[] _meshTriangles = new int[0];
   private Vector3[] _meshVertices;
 
-  public float SlicerShift { set => _slicerShift = value; }
+  public float SlicerShift
+  {
+    set => _slicerShift = value;
+  }
+
   public VolumeSlicer(float slicerShift) => _slicerShift = slicerShift;
 
   public void Init(GameObject objectToSlice)
@@ -42,26 +46,19 @@ public class VolumeSlicer
         vDistToPlane[j] = vertices[j].y - (_meshTransform.position.y + _slicerShift);
       }
 
-      if (AllVerticesBelowTheSlice(vDistToPlane))
+      if (AllVerticesBelowTheSlice(vDistToPlane) || AllVerticesAreOnTheSlice(vDistToPlane))
       {
         slicedTris.Add(new Triangle(vertices));
       }
-      else if (AllVerticesAreOnTheSlice(vDistToPlane))
+      else if (AtLeastOneVertexAreOnTheSlice(vDistToPlane) && AtLeastOneVertexBelowTheSlice(vDistToPlane))
       {
+        var idBelowSlice = vDistToPlane[1] < -EPS ? 1 : vDistToPlane[2] < -EPS ? 2 : 0;
+        var idAboveSlice = vDistToPlane[2] > EPS ? 2 : vDistToPlane[0] > EPS ? 0 : 1;
+
+        if (vDistToPlane[idBelowSlice] * vDistToPlane[idAboveSlice] < 0)
+          MoveVertexToTheCutPlane(vertices[idBelowSlice], ref vertices[idAboveSlice]);
+
         slicedTris.Add(new Triangle(vertices));
-      }
-      else if (AtLeastOneVertexAreOnTheSlice(vDistToPlane))
-      {
-        if (AtLeastOneVertexBelowTheSlice(vDistToPlane))
-        {
-          var idBelowSlice = vDistToPlane[1] < -EPS ? 1 : vDistToPlane[2] < -EPS ? 2 : 0;
-          var idAboveSlice = vDistToPlane[2] > EPS ? 2 : vDistToPlane[0] > EPS ? 0 : 1;
-
-          if (vDistToPlane[idBelowSlice] * vDistToPlane[idAboveSlice] < 0)
-            MoveVerticesToTheCutPlane(vertices[idBelowSlice], ref vertices[idAboveSlice]);
-
-          slicedTris.Add(new Triangle(vertices));
-        }
       }
       else if (AtLeastOneVertexBelowTheSlice(vDistToPlane))
       {
@@ -74,7 +71,7 @@ public class VolumeSlicer
         {
           SliceTriangleInMiddleWithTwoPointsBelow(vDistToPlane, vertices);
           slicedTris.Add(new Triangle(vertices));
-          slicedTris.Add(new Triangle(vertices)); // TODO: add new vertex to triangle
+          slicedTris.Add(GenerateNewTriangleWithOneVertexOnSlice(vDistToPlane, vertices));
         }
       }
     }
@@ -93,38 +90,11 @@ public class VolumeSlicer
 
   private static bool AllVerticesAreOnTheSlice(float[] vDistToPlane) =>
     Math.Abs(vDistToPlane[0]) <= EPS && Math.Abs(vDistToPlane[1]) <= EPS && Math.Abs(vDistToPlane[2]) <= EPS;
+
   private static bool AtLeastOneVertexAreOnTheSlice(float[] vDistToPlane) =>
-    Math.Abs(vDistToPlane[0]) <= EPS || Math.Abs(vDistToPlane[1]) <= EPS || Math.Abs(vDistToPlane[2]) <= EPS; 
+    Math.Abs(vDistToPlane[0]) <= EPS || Math.Abs(vDistToPlane[1]) <= EPS || Math.Abs(vDistToPlane[2]) <= EPS;
 
-  private void SliceTriangleInMiddleWithOnePointBelow(float[] vDistToPlane, Vector3[] vertices)
-  {
-    var idBelow = vDistToPlane[0] < -EPS ? 0 : vDistToPlane[1] < -EPS ? 1 : 2;
-    var idUnder1 = vDistToPlane[0] < -EPS ? 1 : vDistToPlane[1] < -EPS ? 2 : 0;
-    var idUnder2 = 3 ^ (idBelow ^ idUnder1);
-
-    MoveVerticesToTheCutPlane(vertices[idBelow], ref vertices[idUnder1]);
-    MoveVerticesToTheCutPlane(vertices[idBelow], ref vertices[idUnder2]);
-  }
-
-  private void SliceTriangleInMiddleWithTwoPointsBelow(float[] vDistToPlane, Vector3[] vertices)
-  {
-    var idBelow = vDistToPlane[0] < -EPS ? 0 : vDistToPlane[1] < -EPS ? 1 : 2;
-    var idUnder1 = vDistToPlane[0] < -EPS ? 1 : vDistToPlane[1] < -EPS ? 2 : 0;
-    var idUnder2 = 3 ^ (idBelow ^ idUnder1);
-
-    if (vDistToPlane[idBelow] * vDistToPlane[idUnder1] > 0)
-    {
-      MoveVerticesToTheCutPlane(vertices[idBelow], ref vertices[idUnder2]);
-      MoveVerticesToTheCutPlane(vertices[idUnder1], ref vertices[idUnder2]);
-    }
-    else if (vDistToPlane[idBelow] * vDistToPlane[idUnder2] > 0)
-    {
-      MoveVerticesToTheCutPlane(vertices[idBelow], ref vertices[idUnder1]);
-      MoveVerticesToTheCutPlane(vertices[idUnder2], ref vertices[idUnder1]);
-    }
-  }
-
-  private void MoveVerticesToTheCutPlane(Vector3 belowPlaneVertex, ref Vector3 underPlaneVertex)
+  private void MoveVertexToTheCutPlane(Vector3 belowPlaneVertex, ref Vector3 underPlaneVertex)
   {
     underPlaneVertex.x =
       (_slicerShift - belowPlaneVertex.y) * (underPlaneVertex.x - belowPlaneVertex.x) /
@@ -135,5 +105,36 @@ public class VolumeSlicer
       (underPlaneVertex.y - belowPlaneVertex.y) +
       belowPlaneVertex.z;
     underPlaneVertex.y = _slicerShift;
+  }
+
+  private void SliceTriangleInMiddleWithOnePointBelow(float[] vDistToPlane, Vector3[] vertices)
+  {
+    var idBelow = vDistToPlane[0] < -EPS ? 0 : vDistToPlane[1] < -EPS ? 1 : 2;
+    var idUnder1 = vDistToPlane[0] < -EPS ? 1 : vDistToPlane[1] < -EPS ? 2 : 0;
+    var idUnder2 = 3 ^ (idBelow ^ idUnder1);
+
+    MoveVertexToTheCutPlane(vertices[idBelow], ref vertices[idUnder1]);
+    MoveVertexToTheCutPlane(vertices[idBelow], ref vertices[idUnder2]);
+  }
+
+  private void SliceTriangleInMiddleWithTwoPointsBelow(float[] vDistToPlane, Vector3[] vertices)
+  {
+    var idBelow1 = vDistToPlane[0] < -EPS ? 0 : vDistToPlane[1] < -EPS ? 1 : 2;
+    var tempId = vDistToPlane[0] < -EPS ? 1 : vDistToPlane[1] < -EPS ? 2 : 0;
+    var idBelow2 = vDistToPlane[idBelow1] * vDistToPlane[tempId] > 0 ? tempId : 3 ^ (idBelow1 ^ tempId);
+    var idUnder = 3 ^ (idBelow1 ^ idBelow2);
+
+    MoveVertexToTheCutPlane(vertices[idBelow1], ref vertices[idUnder]);
+    MoveVertexToTheCutPlane(vertices[idBelow2], ref vertices[idUnder]);
+  }
+
+
+  private Triangle GenerateNewTriangleWithOneVertexOnSlice(float[] vDistToPlane, Vector3[] vertices)
+  {
+    var idOnSlice = Math.Abs(vDistToPlane[0]) <= EPS ? 0 : Math.Abs(vDistToPlane[1]) <= EPS ? 1 : 2;
+    var id2 = idOnSlice == 0 ? 1 : idOnSlice == 1 ? 2 : 0;
+    var id3 = 3 ^ (idOnSlice ^ id2);
+
+    return new Triangle(vertices[idOnSlice], vertices[id2], vertices[id3]);
   }
 }

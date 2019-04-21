@@ -55,25 +55,21 @@ public class VolumeSlicerTest
       AssertSlicedTrianglesCount(0, _quadObject);
     }
 
-    [TestCase(1f, 0f, TestName = "Slice under the Quad")]
-    [TestCase(0.5f, 0f, TestName = "Slice Quad on top edge")]
-    [TestCase(0.0f, 90f, TestName = "Slice Rotated Quad on its only face (In Plane)")]
-    public void SliceQuad_AllTrianglesReturned(float slicerShift, float quadRotation)
+    [TestCase(1f, TestName = "Slice under the Quad")]
+    [TestCase(0.5f, TestName = "Slice Quad on top edge")]
+    [TestCase(0.0f, 90f, 'x', TestName = "Slice rotated Quad on its only face (In Plane)")]
+    [TestCase(0.7071068f, 45f, 'z', TestName = "Slice rotated Quad on top intersect vertex on angle")]
+    [TestCase(0.7071068f, -45f, 'z', TestName = "Slice rotated Quad on top intersect vertex on angle")]
+    public void SliceQuad_AllTrianglesReturned(float slicerShift, float quadRotation = 0f, char axisName = 'x')
     {
       // ReSharper disable once CompareOfFloatsByEqualityOperator
       if (quadRotation != 0f)
-        _quadObject.transform.Rotate(Vector3.right, quadRotation);
+      {
+        var rotAxis = axisName == 'x' ? Vector3.right : axisName == 'z' ? Vector3.forward : Vector3.up;
+        _quadObject.transform.Rotate(rotAxis, quadRotation);
+      }
 
       _slicer.SlicerShift = slicerShift;
-      AssertSlicedTrianglesCount(_mesh.triangles.Length / 3, _quadObject);
-    }
-
-    [TestCase(45f)]
-    [TestCase(-45f)]
-    public void SliceRotatedQuadOnTop_IntersectVertexOnAngle_AllTrianglesReturned(float quadRotation)
-    {
-      _quadObject.transform.Rotate(Vector3.forward, quadRotation);
-      _slicer.SlicerShift = 0.5f;
       AssertSlicedTrianglesCount(_mesh.triangles.Length / 3, _quadObject);
     }
 
@@ -114,50 +110,65 @@ public class VolumeSlicerTest
         return vAmount;
       }
 
-      [TestCase(1f, 0f)]
-      [TestCase(0.5f, 0f)]
-      [TestCase(0f, 90f)]
-      public void AllTrianglesSlice_HasAllVertices_BelowTheCut(float slicerShift, float quadRotation)
-      {        
-        _quadObject.transform.Rotate(Vector3.right, quadRotation);
-        _slicer.SlicerShift = slicerShift;       
-        _slicer.Init(_quadObject);
-        
-        var tris = _slicer.MakeSlice();
-
-        Assert.AreEqual(tris.Count * 3, AmountOfVerticesBelowTheSlice(tris, slicerShift));
-      }
-
-      [TestCase(0.25f, -45f)]
-      [TestCase(0f, -45f)]
-      [TestCase(-0.25f, -45f)]
-      [TestCase(0.25f, 45f)]
-      [TestCase(0f, 45f)]
-      [TestCase(-0.25f, 45f)]
-      public void SliceOnRotatedQuad_HasAllVertices_BelowTheCut(float slicerShift, float quadRotation)
-      {        
-        _quadObject.transform.Rotate(Vector3.forward, quadRotation);
-        _slicer.SlicerShift = slicerShift;
-        _slicer.Init(_quadObject);
-        
-        var tris = _slicer.MakeSlice();
-
-        Assert.AreEqual(tris.Count * 3, AmountOfVerticesBelowTheSlice(tris, slicerShift));
-      }
-
+      [TestCase(1f)]
+      [TestCase(0.5f)]
+      [TestCase(0.49f)]
       [TestCase(0.25f)]
-      [TestCase(0f)]
+      [TestCase(0)]
       [TestCase(-0.25f)]
-      public void SliceRotatedQuad_PerpendicularToTriangles_ReturnedTrianglesAreNotCoincides(float slicerShift)
-      {        
-        _quadObject.transform.Rotate(Vector3.forward, 45);
+      [TestCase(-0.49f)]
+      [TestCase(-0.5f)]
+      [TestCase(-1f)]
+      [TestCase(0f, 90f, 'x')]
+      [TestCase(0.7071068f, 45f, 'z')]
+      [TestCase(0.7071068f, -45f, 'z')]
+      [TestCase(0.25f, -45f, 'z')]
+      [TestCase(0f, -45f, 'z')]
+      [TestCase(-0.25f, -45f, 'z')]
+      [TestCase(0.25f, 45f, 'z')]
+      [TestCase(0f, 45f, 'z')]
+      [TestCase(-0.25f, 45f, 'z')]
+      public void SliceQuad_HasAllVertices_BelowTheCut(float slicerShift, float quadRotation = 0f, char axisName = 'x')
+      {
+        var rotAxis = axisName == 'x' ? Vector3.right : axisName == 'z' ? Vector3.forward : Vector3.up;
+        _quadObject.transform.Rotate(rotAxis, quadRotation);
         _slicer.SlicerShift = slicerShift;
         _slicer.Init(_quadObject);
-        
+
+        var tris = _slicer.MakeSlice();
+
+        Assert.AreEqual(tris.Count * 3, AmountOfVerticesBelowTheSlice(tris, slicerShift));
+      }
+
+      [TestCase(0.49f)]
+      [TestCase(0.25f)]
+      [TestCase(0)]
+      [TestCase(-0.49f)]
+      [TestCase(-0.25f)]
+      public void SliceQuad_PerpendicularToTriangles_ReturnedTrianglesAreNotCoincides(float slicerShift)
+      {
+        _slicer.SlicerShift = slicerShift;
+        _slicer.Init(_quadObject);
+
         var tris = _slicer.MakeSlice();
 
         Assert.IsFalse(tris[0].v1 == tris[1].v1 && tris[0].v2 == tris[1].v2 && tris[0].v3 == tris[1].v3);
       }
+      
+      [TestCase(0.25f)]
+      [TestCase(0f)]
+      [TestCase(-0.25f)]
+      public void SliceRotatedQuad_PerpendicularToTriangles_ReturnedTrianglesAreNotCoincides(float slicerShift)
+      {
+        _quadObject.transform.Rotate(Vector3.forward, 45);
+        _slicer.SlicerShift = slicerShift;
+        _slicer.Init(_quadObject);
+
+        var tris = _slicer.MakeSlice();
+
+        Assert.IsFalse(tris[0].v1 == tris[1].v1 && tris[0].v2 == tris[1].v2 && tris[0].v3 == tris[1].v3);
+      }          
+      
     }
   }
 }

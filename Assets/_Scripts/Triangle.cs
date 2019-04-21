@@ -11,7 +11,7 @@ public struct Triangle
       if (id <= 0) return v1;
       if (id == 1) return v2;
       if (id >= 2) return v3;
-      return default;
+      return v1;
     }
   }
 
@@ -22,6 +22,13 @@ public struct Triangle
     v3 = vertices[2];
   }
 
+  public Triangle(Vector3 v1, Vector3 v2, Vector3 v3)
+  {
+    this.v1 = v1;
+    this.v2 = v2;
+    this.v3 = v3;    
+  }
+  
   public Triangle(Vector3 v1, Vector3 v2, Vector3 v3, Vector3 norm)
   {
     this.v1 = v1;
